@@ -8,7 +8,7 @@ AI-powered book discovery API. Send a natural language prompt and the agent find
 
 ## How It Works
 
-Every request to `/chat` runs through a 5-node LangGraph agent:
+Every request to `/chat` runs through a 6-node LangGraph agent:
 
 ```
 User prompt
@@ -16,10 +16,11 @@ User prompt
             ├── "search"    → search_books_node  → returns top 5 books from HardCover
             ├── "purchase"  → purchase_node      → returns buy links (Amazon, Kobo, Google Books)
             ├── "ebook"     → ebook_node         → returns epub/mobi links (Anna's Archive)
-            └── "audiobook" → audiobook_node     → returns download links (AudiobookBay)
+            └── "audiobook" → audiobook_node     → validate_audiobook_node → returns filtered download links
 ```
 
-The search node runs up to 2 reflection iterations using `gpt-4o` to improve results before responding.
+The search node runs up to 2 reflection iterations using `gpt-4o` to improve results before responding.  
+Audiobook results are post-filtered by `validate_audiobook_node` using `gpt-4o-mini` to remove likely title mismatches.
 
 ---
 
@@ -31,7 +32,7 @@ The search node runs up to 2 reflection iterations using `gpt-4o` to improve res
 | API framework | FastAPI + Uvicorn |
 | Data validation | Pydantic v2 |
 | Agent framework | LangChain + LangGraph |
-| LLMs | `gpt-4o-mini` (parsing/search), `gpt-4o` (reflection) |
+| LLMs | `gpt-4o-mini` (parsing + audiobook validation), `gpt-4o` (search reflection) |
 | Book search | HardCover GraphQL API |
 | Web search | Tavily API |
 | Database | MongoDB (Motor async driver) |
@@ -65,7 +66,7 @@ book-ninja-be/
 │   │   └── middleware/         # auth.py · validation.py
 │   ├── agent/
 │   │   ├── graph.py            # LangGraph StateGraph + run_agent()
-│   │   ├── nodes/              # start · search · purchase · ebook · audiobook
+│   │   ├── nodes/              # start · search · purchase · ebook · audiobook · validate_audiobook
 │   │   └── tools/              # parse_query · search_books · find_purchase_links
 │   │                           # search_current_mirror · find_ebook_link · find_audiobook_link
 │   ├── db/
@@ -80,6 +81,7 @@ book-ninja-be/
 │   ├── test_models.py
 │   ├── test_threads.py
 │   ├── test_tools.py
+│   ├── test_validate_audiobook_node.py
 │   └── test_validation.py
 ├── .env.example                # Environment variable template
 ├── requirements.txt
@@ -174,7 +176,8 @@ curl -X POST http://localhost:8000/chat \
 ```json
 {
   "output": "- Dune by Frank Herbert (1965) — Rating: 4.5\n  ...",
-  "thread_id": "user123_4f8a2b1c-..."
+  "thread_id": "user123_4f8a2b1c-...",
+  "books": []
 }
 ```
 
