@@ -1,8 +1,11 @@
 import json
 import logging
 import re
+
 from langchain_openai import ChatOpenAI
+
 from models.agent import AgentState
+from utils.llm_stream import collect_stream
 
 logger = logging.getLogger(__name__)
 
@@ -55,9 +58,10 @@ async def validate_audiobook_node(state: AgentState) -> AgentState:
         f'"title": "The End of the World As We Know It - Stephen King, Christopher Golden, Brian Keene" then ignore it since its not the same book as It'
     )
 
-    response = await _llm.ainvoke(prompt)
+    response = await collect_stream(_llm.astream(prompt))
+    response_content = getattr(response, "content", str(response))
     try:
-        indices = _extract_indices(response.content)
+        indices = _extract_indices(response_content)
         filtered = [state.audio_links[i] for i in indices if 0 <= i < len(state.audio_links)]
     except Exception:
         logger.warning("Failed to parse audiobook validation response; keeping all links")

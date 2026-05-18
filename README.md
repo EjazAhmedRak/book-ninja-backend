@@ -65,7 +65,7 @@ book-ninja-be/
 │   │   ├── routes/             # chat.py · threads.py · health.py
 │   │   └── middleware/         # auth.py · validation.py
 │   ├── agent/
-│   │   ├── graph.py            # LangGraph StateGraph + run_agent()
+│   │   ├── graph.py            # LangGraph StateGraph + stream_agent()/run_agent()
 │   │   ├── nodes/              # start · search · purchase · ebook · audiobook · validate_audiobook
 │   │   └── tools/              # parse_query · search_books · find_purchase_links
 │   │                           # search_current_mirror · find_ebook_link · find_audiobook_link
@@ -73,6 +73,7 @@ book-ninja-be/
 │   │   ├── mongo.py            # Motor client, ping_mongo, save_user, get_latest_threads
 │   │   └── checkpointer.py     # LangGraph InMemorySaver (MongoDB saver: see note below)
 │   └── utils/
+│       ├── llm_stream.py       # collect_stream() helper for LLM .astream() aggregation
 │       └── retry.py            # call_with_retry() tenacity wrapper
 ├── tests/                      # pytest suite
 │   ├── conftest.py             # Shared fixtures (mock env, mock auth, test client)
@@ -155,10 +156,11 @@ The API mounts the source directory, so `--reload` picks up changes without rebu
 
 ### `POST /chat`
 
-Send a natural language book query. Requires authentication.
+Send a natural language book query. Requires authentication.  
+This endpoint streams results as **Server-Sent Events (SSE)** (`text/event-stream`).
 
 ```bash
-curl -X POST http://localhost:8000/chat \
+curl -N -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <google-id-token>" \
   -d '{"prompt": "find me Dune by Frank Herbert"}'
@@ -172,16 +174,98 @@ curl -X POST http://localhost:8000/chat \
 }
 ```
 
-**Response:**
-```json
-{
-  "output": "- Dune by Frank Herbert (1965) — Rating: 4.5\n  ...",
-  "thread_id": "user123_4f8a2b1c-...",
-  "books": []
-}
+**SSE events:**
+```text
+event: status
+data: {"node":"start","message":"Request parsed. Detected intent: search.","thread_id":"user123_4f8a2b1c-..."}
+
+event: status
+data: {"node":"search_books","message":"Searching book catalog and ranking matches.","thread_id":"user123_4f8a2b1c-..."}
+
+event: final
+data: {"output":"- Dune by Frank Herbert (1965) — Rating: 4.5\n  ...","thread_id":"user123_4f8a2b1c-...","books":[]}
 ```
 
-Pass `thread_id` from a previous response to continue the same conversation.
+Event types:
+- `status`: emitted after each graph node completes
+- `final`: emitted once with final payload (`output`, `thread_id`, `books`)
+- `error`: emitted if processing fails
+
+Pass `thread_id` in the request to continue the same conversation.
+
+#### Frontend Consumption Example (`fetch` + stream reader)
+
+Use `fetch` instead of `EventSource` because `/chat` is a `POST` endpoint and requires auth headers.
+
+```ts
+type ChatStatusEvent = {
+  node: string;
+  message: string;
+  thread_id: string;
+};
+
+type ChatFinalEvent = {
+  output: string;
+  thread_id: string;
+  books: Array<{ title: string; author?: string; year?: string; url: string; rating?: number }>;
+};
+
+export async function streamChat({
+  prompt,
+  threadId,
+  token,
+  onStatus,
+  onFinal,
+  onError,
+}: {
+  prompt: string;
+  threadId?: string;
+  token: string;
+  onStatus: (event: ChatStatusEvent) => void;
+  onFinal: (event: ChatFinalEvent) => void;
+  onError: (message: string) => void;
+}) {
+  const res = await fetch("http://localhost:8000/chat", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ prompt, thread_id: threadId }),
+  });
+
+  if (!res.ok || !res.body) {
+    throw new Error(`Chat request failed: ${res.status}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const blocks = buffer.split("\n\n");
+    buffer = blocks.pop() ?? "";
+
+    for (const block of blocks) {
+      const lines = block.split("\n");
+      const eventLine = lines.find((l) => l.startsWith("event: "));
+      const dataLine = lines.find((l) => l.startsWith("data: "));
+      if (!eventLine || !dataLine) continue;
+
+      const event = eventLine.slice("event: ".length).trim();
+      const data = JSON.parse(dataLine.slice("data: ".length));
+
+      if (event === "status") onStatus(data as ChatStatusEvent);
+      if (event === "final") onFinal(data as ChatFinalEvent);
+      if (event === "error") onError((data?.message as string) || "Unknown error");
+    }
+  }
+}
+```
 
 ---
 

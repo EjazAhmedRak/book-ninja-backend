@@ -1,13 +1,20 @@
+import json
+import logging
+from collections.abc import AsyncIterator
+
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+
+from agent.graph import stream_agent
+from api.middleware.auth import GoogleUser, validate_google_token
+from api.middleware.validation import validate_prompt
+from db.mongo import save_thread, save_user
 from models.agent import AgentState
 from models.user import UserRecord
-from api.middleware.auth import validate_google_token, GoogleUser
-from api.middleware.validation import validate_prompt
-from agent.graph import run_agent
-from db.mongo import save_user, save_thread
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
@@ -27,6 +34,26 @@ class ChatResponse(BaseModel):
     output:    str
     thread_id: str
     books:     list[BookEntry] = []
+
+
+NODE_STATUS_MESSAGES = {
+    "start": "Parsing your request.",
+    "search_books": "Searching book catalog and ranking matches.",
+    "purchase": "Finding purchase options.",
+    "download_ebook": "Finding ebook download links.",
+    "download_audiobook": "Finding audiobook download links.",
+    "validate_audiobook": "Validating audiobook link relevance.",
+}
+
+
+def _status_message(node_name: str, state: AgentState) -> str:
+    if node_name == "start" and state.intent:
+        return f"Request parsed. Detected intent: {state.intent}."
+    return NODE_STATUS_MESSAGES.get(node_name, f"Completed step: {node_name}.")
+
+
+def _sse(event: str, data: dict) -> str:
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 def _extract_books(state: AgentState) -> list[BookEntry]:
@@ -54,20 +81,48 @@ def _extract_books(state: AgentState) -> list[BookEntry]:
     return []
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat")
 async def chat(req: ChatRequest, request: Request, user: GoogleUser = Depends(validate_google_token)):
     """Main agent endpoint. Requires a valid Google ID token."""
     validate_prompt(req.prompt)
     await save_user(UserRecord(email=user.email, google_id=user.sub))
-    result = await run_agent(
-        graph=request.app.state.graph,
-        prompt=req.prompt,
-        user_id=user.sub,
-        thread_id=req.thread_id,
-    )
-    await save_thread(user_id=user.sub, thread_id=result.thread_id, prompt=req.prompt)
-    return ChatResponse(
-        output=result.output or "",
-        thread_id=result.thread_id,
-        books=_extract_books(result),
+
+    async def event_stream() -> AsyncIterator[str]:
+        latest_state: AgentState | None = None
+        try:
+            async for node_name, state in stream_agent(
+                graph=request.app.state.graph,
+                prompt=req.prompt,
+                user_id=user.sub,
+                thread_id=req.thread_id,
+            ):
+                latest_state = state
+                yield _sse("status", {
+                    "node": node_name,
+                    "message": _status_message(node_name, state),
+                    "thread_id": state.thread_id,
+                })
+
+            if latest_state is None:
+                return
+
+            await save_thread(user_id=user.sub, thread_id=latest_state.thread_id, prompt=req.prompt)
+
+            final = ChatResponse(
+                output=latest_state.output or "",
+                thread_id=latest_state.thread_id,
+                books=_extract_books(latest_state),
+            )
+            yield _sse("final", final.model_dump())
+        except Exception:
+            logger.exception("Error while streaming /chat response")
+            yield _sse("error", {"message": "An unexpected error occurred while processing the request."})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        },
     )

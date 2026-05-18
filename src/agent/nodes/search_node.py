@@ -1,10 +1,11 @@
 from langchain_openai import ChatOpenAI
+
+from agent.tools.parse_query import parse_query
+from agent.tools.search_books import search_books
 from models.agent import AgentState
 from models.book import BookResult
-from agent.tools.search_books import search_books
-from agent.tools.parse_query import parse_query
+from utils.llm_stream import collect_stream
 
-search_llm  = ChatOpenAI(model="gpt-4o-mini")
 reflect_llm = ChatOpenAI(model="gpt-4o")
 
 
@@ -41,14 +42,15 @@ async def search_books_node(state: AgentState) -> AgentState:
     results = await search_books.ainvoke({"query": state.parsed_query.model_dump()})
 
     for _ in range(2):
-        reflection = await reflect_llm.ainvoke(
+        reflection = await collect_stream(reflect_llm.astream(
             f"Review these book search results for relevance and completeness:\n{results}\n"
             f"Original query: {state.prompt}\n"
             "Are the results relevant and complete? If not, suggest a refined search query."
-        )
-        if "satisfactory" in reflection.content.lower():
+        ))
+        reflection_content = getattr(reflection, "content", str(reflection))
+        if "satisfactory" in reflection_content.lower():
             break
-        refined = _extract_refined_query(reflection.content)
+        refined = _extract_refined_query(reflection_content)
         if refined:
             refined_parsed = await parse_query.ainvoke({"prompt": refined})
             results = await search_books.ainvoke({"query": refined_parsed.model_dump()})

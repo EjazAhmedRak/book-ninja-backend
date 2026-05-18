@@ -1,5 +1,5 @@
 import os
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 os.environ.setdefault("OPENAI_API_KEY", "test-openai-key")
 
@@ -27,8 +27,15 @@ async def test_validate_audiobook_node_parses_non_strict_llm_response():
 
     mock_llm_response = type("Resp", (), {"content": "Sure, keep these indices: ```json\n[0]\n```"})()
 
-    mock_llm = AsyncMock()
-    mock_llm.ainvoke.return_value = mock_llm_response
+    class MockLLM:
+        @staticmethod
+        def astream(*_, **__):
+            async def _stream():
+                yield mock_llm_response
+
+            return _stream()
+
+    mock_llm = MockLLM()
 
     with patch("agent.nodes.validate_audiobook_node._llm", mock_llm):
         updated = await validate_audiobook_node(state)

@@ -11,7 +11,7 @@
 
 ## 1. Overview
 
-The Book Ninja backend is an AI agent exposed via a FastAPI REST API. It uses LangChain as the agent framework and ChatGPT as the LLM engine. The agent accepts natural language prompts, routes them through a graph of nodes (Search, Purchase, Download), and returns structured responses. MongoDB persists threads and memory across sessions. All data structures throughout the application are defined as **Pydantic models**, ensuring type safety, automatic validation, and clean OpenAPI documentation.
+The Book Ninja backend is an AI agent exposed via a FastAPI REST API. It uses LangChain as the agent framework and ChatGPT as the LLM engine. The agent accepts natural language prompts, routes them through a graph of nodes (Search, Purchase, Download), and streams node-level status updates plus a final structured result over `/chat` using SSE. MongoDB persists threads and memory across sessions. All data structures throughout the application are defined as **Pydantic models**, ensuring type safety, automatic validation, and clean OpenAPI documentation.
 
 ---
 
@@ -399,37 +399,47 @@ def validate_prompt(prompt: str) -> None:
 
 ## 9. API Endpoints
 
-### 9.1 `/chat` — POST
+### 9.1 `/chat` — POST (Streaming SSE)
+
+`/chat` now returns `text/event-stream` instead of a single JSON body.
+
+Event contract:
+- `status`: emitted after each node executes (`start`, `search_books`, `purchase`, `download_ebook`, `download_audiobook`, `validate_audiobook`)
+- `final`: emitted once with `{output, thread_id, books}`
+- `error`: emitted if streaming fails mid-run
 
 ```python
 # api/routes/chat.py
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import StreamingResponse
 from api.middleware.auth import validate_google_token, GoogleUser
 from api.middleware.validation import validate_prompt
-from agent.graph import run_agent
-from db.mongo import save_user
+from agent.graph import stream_agent
 
-router = APIRouter()
-
-class ChatRequest(BaseModel):
-    prompt:    str
-    thread_id: str | None = None
-
-class ChatResponse(BaseModel):
-    output:    str
-    thread_id: str
-
-@router.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest, user: GoogleUser = Depends(validate_google_token)):
+@router.post("/chat")
+async def chat(req: ChatRequest, request: Request, user: GoogleUser = Depends(validate_google_token)):
     validate_prompt(req.prompt)
-    await save_user(UserRecord(email=user.email, google_id=user.sub))
-    result = await run_agent(
-        prompt=req.prompt,
-        user_id=user.sub,
-        thread_id=req.thread_id
-    )
-    return ChatResponse(output=result.output, thread_id=result.thread_id)
+
+    async def event_stream():
+        latest_state = None
+        async for node_name, state in stream_agent(
+            graph=request.app.state.graph,
+            prompt=req.prompt,
+            user_id=user.sub,
+            thread_id=req.thread_id,
+        ):
+            latest_state = state
+            yield _sse("status", {"node": node_name, "thread_id": state.thread_id})
+
+        if latest_state is not None:
+            final = ChatResponse(
+                output=latest_state.output or "",
+                thread_id=latest_state.thread_id,
+                books=_extract_books(latest_state),
+            )
+            yield _sse("final", final.model_dump())
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 ```
 
 ### 9.2 `/latestThreads` — GET
@@ -562,6 +572,7 @@ The agent is built as a directed graph using LangGraph. The `AgentState` Pydanti
 | Purchase Node | Calls `find_purchase_links` tool; returns purchase URLs |
 | Download Ebook Node | Calls `search_current_mirror` then `find_ebook_link`; returns epub/mobi links |
 | Download Audiobook Node | Calls `search_current_mirror` then `find_audiobook_link`; returns download links |
+| Validate Audiobook Node | Uses LLM title/author matching to filter noisy audiobook scrape results |
 
 ### 11.2 Conditional Edges
 
@@ -583,14 +594,19 @@ graph.add_node("search_books",       search_books_node)
 graph.add_node("purchase",           purchase_node)
 graph.add_node("download_ebook",     ebook_node)
 graph.add_node("download_audiobook", audiobook_node)
+graph.add_node("validate_audiobook", validate_audiobook_node)
 
 graph.set_entry_point("start")
 graph.add_conditional_edges("start", route)
 graph.add_edge("search_books",       END)
 graph.add_edge("purchase",           END)
 graph.add_edge("download_ebook",     END)
-graph.add_edge("download_audiobook", END)
+graph.add_edge("download_audiobook", "validate_audiobook")
+graph.add_edge("validate_audiobook", END)
 ```
+
+Runtime execution uses `graph.astream(..., stream_mode="updates")` so `/chat` can forward
+node-by-node progress in real time.
 
 ### 11.3 Reflection on Search Node
 
@@ -598,19 +614,19 @@ graph.add_edge("download_audiobook", END)
 # agent/nodes/search_node.py
 from langchain_openai import ChatOpenAI
 from models.agent import AgentState
+from utils.llm_stream import collect_stream
 
-search_llm  = ChatOpenAI(model="gpt-4o-mini")
 reflect_llm = ChatOpenAI(model="gpt-4o")
 
 async def search_books_node(state: AgentState) -> AgentState:
     results = await search_books_tool.ainvoke(state.parsed_query)
 
     for _ in range(2):   # max 2 reflection iterations
-        reflection = await reflect_llm.ainvoke(
+        reflection = await collect_stream(reflect_llm.astream(
             f"Review these book search results for relevance and completeness:\n{results}\n"
             f"Original query: {state.prompt}\n"
             "Are the results relevant and complete? If not, suggest a refined search query."
-        )
+        ))
         if "satisfactory" in reflection.content.lower():
             break
         refined = extract_refined_query(reflection.content)
@@ -635,9 +651,9 @@ Extracts structured fields from a natural language prompt and returns a typed `P
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from models.query import ParsedQuery
-import json
+from utils.llm_stream import collect_stream
 
-llm = ChatOpenAI(model="gpt-4o-mini")
+llm = ChatOpenAI(model="gpt-4o-mini").with_structured_output(ParsedQuery)
 
 @tool
 async def parse_query(prompt: str) -> ParsedQuery:
@@ -646,14 +662,13 @@ async def parse_query(prompt: str) -> ParsedQuery:
     Returns a ParsedQuery with title, genre, year, author, and intent.
     Intent is one of: search, purchase, ebook, audiobook.
     """
-    response = await llm.ainvoke(
+    response = await collect_stream(llm.astream(
         f"Extract the following fields from this book query: title, genre, year, author, intent.\n"
         f"Intent must be one of: search, purchase, ebook, audiobook.\n"
         f"Query: {prompt}\n"
         f"Return as JSON only."
-    )
-    data = json.loads(response.content)
-    return ParsedQuery(**data)
+    ))
+    return response if isinstance(response, ParsedQuery) else ParsedQuery(**response)
 ```
 
 ### 12.2 `Search_Books`

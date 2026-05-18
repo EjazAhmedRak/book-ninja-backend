@@ -1,6 +1,8 @@
-from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+
 from models.query import ParsedQuery
+from utils.llm_stream import collect_stream
 
 _llm = ChatOpenAI(model="gpt-4o-mini").with_structured_output(ParsedQuery)
 
@@ -12,7 +14,7 @@ async def parse_query(prompt: str) -> ParsedQuery:
     Returns a ParsedQuery with title, genre, year, author, and intent.
     Intent is one of: search, purchase, ebook, audiobook.
     """
-    return await _llm.ainvoke(
+    response = await collect_stream(_llm.astream(
         "Extract structured fields from a book-related query.\n\n"
         "Fields:\n"
         "- title: ONLY set this when the user names a specific book (e.g. 'The Shining', 'Atomic Habits'). "
@@ -30,4 +32,9 @@ async def parse_query(prompt: str) -> ParsedQuery:
         "Example: 'download ebook of Dune by Frank Herbert' → title='Dune', author='Frank Herbert', intent='ebook'\n\n"
         "Example:'Find me purchase options for King of Pigs By J. H. Archer audiobook' → title='King of Pigs', author='J. H. Archer', intent='purchase', format='audiobook'\n\n"
         f"Query: {prompt}"
-    )
+    ))
+    if isinstance(response, ParsedQuery):
+        return response
+    if isinstance(response, dict):
+        return ParsedQuery(**response)
+    raise ValueError("parse_query streaming response could not be parsed into ParsedQuery")
