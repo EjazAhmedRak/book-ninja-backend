@@ -38,3 +38,8 @@
 - Copy `.env.example` to `.env`; never commit secrets.
 - Keep `APP_ENV=prod` behavior strict: no debug auth bypass headers.
 - Validate new config keys in `src/config.py` and document them in `README.md`.
+
+## Collaboration Preference (Approval Before File Changes)
+- Before modifying any file, present the proposed diff and wait for explicit user approval.
+- Do not edit, create, delete, or overwrite files until approval is given.
+- If scope changes after approval, present an updated diff and request approval again.

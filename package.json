@@ -1,0 +1,14 @@
+{
+  "name": "book-ninja-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/frontend"
+  ],
+  "scripts": {
+    "dev:frontend": "npm --workspace apps/frontend run dev",
+    "build:frontend": "npm --workspace apps/frontend run build",
+    "test:frontend": "npm --workspace apps/frontend run test",
+    "test:backend": "cd apps/backend && pytest"
+  }
+}
