@@ -1,28 +1,52 @@
 # Book Ninja Monorepo
 
-This repository contains the Book Ninja backend and frontend applications.
+This repository is a monorepo with separate backend and frontend apps.
 
-## Structure
+## Repository Structure
 
 - `apps/backend` - FastAPI + LangGraph backend
-- `apps/frontend` - Frontend scaffold and development guide
+- `apps/frontend` - Vite + React frontend
 
-## Local Development
+## Setup (One Time)
 
-### Backend
+### 1. Install frontend workspace dependencies
+
+```bash
+npm install
+```
+
+### 2. Set up backend Python environment
 
 ```bash
 cd apps/backend
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-uvicorn src.main:app --reload --port 8000
+cp .env.example .env
 ```
 
-### Frontend
+Then fill the values in `apps/backend/.env`.
+
+## Run Apps Separately
+
+### Start backend only
 
 ```bash
-cd apps/frontend
-npm install
+npm run dev:backend
+```
+
+Backend runs at `http://localhost:8000`.
+
+### Start frontend only
+
+```bash
+npm run dev:frontend
+```
+
+Frontend runs at `http://localhost:5173`.
+
+## Run Backend + Frontend Together
+
+```bash
 npm run dev
 ```

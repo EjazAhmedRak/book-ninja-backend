@@ -6,7 +6,9 @@
     "apps/frontend"
   ],
   "scripts": {
+    "dev:backend": "cd apps/backend && PYTHONPATH=src venv/bin/uvicorn main:app --reload --port 8000",
     "dev:frontend": "npm --workspace apps/frontend run dev",
+    "dev": "npm run dev:backend & npm run dev:frontend",
     "build:frontend": "npm --workspace apps/frontend run build",
     "test:frontend": "npm --workspace apps/frontend run test",
     "test:backend": "cd apps/backend && pytest"

@@ -3,6 +3,8 @@
 AI-powered book discovery API. Send a natural language prompt and the agent finds books, purchase links, ebook downloads, or audiobook downloads — automatically routing based on intent.
 
 > Internal test application · v2 · Python 3.12 · FastAPI + LangGraph
+>
+> Monorepo location: `apps/backend` (from repository root)
 
 ---
 
@@ -45,61 +47,36 @@ Audiobook results are post-filtered by `validate_audiobook_node` using `gpt-4o-m
 
 ## Project Structure
 
-```
+```text
 book-ninja-be/
-├── src/                        # Application source (PYTHONPATH root)
-│   ├── main.py                 # FastAPI entry point
-│   ├── config.py               # Environment variable loading
-│   ├── models/                 # All Pydantic models
-│   │   ├── query.py            # ParsedQuery
-│   │   ├── book.py             # BookResult
-│   │   ├── purchase.py         # PurchaseLink, PurchaseQuery
-│   │   ├── ebook.py            # EbookLink, EbookQuery
-│   │   ├── audiobook.py        # AudiobookLink, AudiobookQuery
-│   │   ├── mirror.py           # MirrorQuery, MirrorResult
-│   │   ├── thread.py           # ThreadRecord, ThreadsResponse
-│   │   ├── health.py           # HealthResponse
-│   │   ├── agent.py            # AgentState
-│   │   └── user.py             # UserRecord
-│   ├── api/
-│   │   ├── routes/             # chat.py · threads.py · health.py
-│   │   └── middleware/         # auth.py · validation.py
-│   ├── agent/
-│   │   ├── graph.py            # LangGraph StateGraph + stream_agent()/run_agent()
-│   │   ├── nodes/              # start · search · purchase · ebook · audiobook · validate_audiobook
-│   │   └── tools/              # parse_query · search_books · find_purchase_links
-│   │                           # search_current_mirror · find_ebook_link · find_audiobook_link
-│   ├── db/
-│   │   ├── mongo.py            # Motor client, ping_mongo, save_user, get_latest_threads
-│   │   └── checkpointer.py     # LangGraph InMemorySaver (MongoDB saver: see note below)
-│   └── utils/
-│       ├── llm_stream.py       # collect_stream() helper for LLM .astream() aggregation
-│       └── retry.py            # call_with_retry() tenacity wrapper
-├── tests/                      # pytest suite
-│   ├── conftest.py             # Shared fixtures (mock env, mock auth, test client)
-│   ├── test_chat.py
-│   ├── test_health.py
-│   ├── test_models.py
-│   ├── test_threads.py
-│   ├── test_tools.py
-│   ├── test_validate_audiobook_node.py
-│   └── test_validation.py
-├── .env.example                # Environment variable template
-├── requirements.txt
-├── pyproject.toml              # pytest + ruff + coverage config
-├── Dockerfile                  # Multi-stage production image
-├── docker-compose.yml          # Local dev with MongoDB sidecar
-└── .github/workflows/
-    └── backend.yml             # CI: lint → test → docker build
+├── apps/
+│   ├── backend/
+│   │   ├── src/                # FastAPI + LangGraph application code
+│   │   ├── tests/              # pytest suite
+│   │   ├── requirements.txt
+│   │   ├── pyproject.toml
+│   │   ├── Dockerfile
+│   │   └── docker-compose.yml
+│   └── frontend/               # Vite + React app
+├── package.json                # monorepo scripts
+└── pnpm-workspace.yaml
 ```
+
+Inside `apps/backend/src`, key modules are:
+- `main.py` (FastAPI entry point)
+- `api/routes` (`chat.py`, `threads.py`, `health.py`)
+- `agent` (LangGraph graph, nodes, and tools)
+- `db` (MongoDB access + checkpointer)
+- `models` (Pydantic models)
 
 ---
 
 ## Setup
 
-### 1. Clone and create virtual environment
+### 1. Move to backend directory and create virtual environment
 
 ```bash
+cd apps/backend
 python3 -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -130,14 +107,23 @@ Edit `.env` and fill in all values:
 ### 3. Start the server
 
 ```bash
-PYTHONPATH=src venv/bin/uvicorn main:app --reload --port 8000
+PYTHONPATH=src uvicorn main:app --reload --port 8000
+```
+
+From repository root, you can run the same command via:
+
+```bash
+npm run dev:backend
 ```
 
 The API will be available at `http://localhost:8000`.  
 Interactive docs: `http://localhost:8000/docs`
 
-For Debug Mode:
-PYTHONPATH=src venv/bin/uvicorn main:app --reload --port 8000 --log-level debug
+For debug mode:
+
+```bash
+PYTHONPATH=src uvicorn main:app --reload --port 8000 --log-level debug
+```
 ---
 
 ## Running with Docker Compose
