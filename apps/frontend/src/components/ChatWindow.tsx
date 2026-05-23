@@ -2,7 +2,16 @@ import React, { useMemo, useState } from 'react'
 
 const MAX_PROMPT_LENGTH = 3000
 
-function createMessage(role, content) {
+type MessageRole = 'assistant' | 'user'
+
+type ChatMessage = {
+  id: string
+  role: MessageRole
+  content: string
+  timestamp: string
+}
+
+function createMessage(role: MessageRole, content: string): ChatMessage {
   return {
     id: globalThis.crypto?.randomUUID?.() ?? `${role}-${Date.now()}-${Math.random()}`,
     role,
@@ -12,7 +21,7 @@ function createMessage(role, content) {
 }
 
 export default function ChatWindow() {
-  const initialMessages = useMemo(
+  const initialMessages = useMemo<ChatMessage[]>(
     () => [
       createMessage(
         'assistant',
@@ -22,7 +31,7 @@ export default function ChatWindow() {
     []
   )
 
-  const [messages, setMessages] = useState(initialMessages)
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState('')
 
   const handleSend = () => {
