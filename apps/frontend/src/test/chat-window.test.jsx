@@ -1,11 +1,20 @@
 import React from 'react'
 import { describe, expect, test } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import ChatPage from '../pages/ChatPage'
+
+function renderChatPage() {
+  return render(
+    <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+      <ChatPage />
+    </MemoryRouter>
+  )
+}
 
 describe('chat page shell', () => {
   test('renders welcome banner and seeded assistant message', () => {
-    render(<ChatPage />)
+    renderChatPage()
 
     expect(screen.getByRole('heading', { name: /welcome to book ninja/i })).toBeInTheDocument()
     expect(
@@ -14,7 +23,7 @@ describe('chat page shell', () => {
   })
 
   test('appends user message when input is non-empty', () => {
-    render(<ChatPage />)
+    renderChatPage()
 
     fireEvent.change(screen.getByLabelText(/message input/i), {
       target: { value: 'Find me sci-fi books by Asimov' },
@@ -25,7 +34,7 @@ describe('chat page shell', () => {
   })
 
   test('does not append empty messages', () => {
-    render(<ChatPage />)
+    renderChatPage()
 
     fireEvent.change(screen.getByLabelText(/message input/i), {
       target: { value: '   ' },

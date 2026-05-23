@@ -17,7 +17,7 @@ describe('login success transition', () => {
 
   test('login action sets token and navigates to login-success', () => {
     render(
-      <MemoryRouter initialEntries={['/login']}>
+      <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }} initialEntries={['/login']}>
         <AppRouter />
       </MemoryRouter>
     )
@@ -32,7 +32,7 @@ describe('login success transition', () => {
     useAuthStore.setState({ token: 'demo-token' })
 
     render(
-      <MemoryRouter initialEntries={['/login-success']}>
+      <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }} initialEntries={['/login-success']}>
         <AppRouter />
       </MemoryRouter>
     )
