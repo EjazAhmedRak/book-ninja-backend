@@ -1,6 +1,8 @@
 import { jwtDecode } from 'jwt-decode'
 import { create } from 'zustand'
 
+const AUTH_STORAGE_KEY = 'book-ninja.auth'
+
 export type AuthUser = {
   name: string
   email: string
@@ -12,6 +14,10 @@ type GoogleCredentialPayload = {
   given_name?: string
   email?: string
   picture?: string
+}
+
+type StoredAuthSession = {
+  token: string
 }
 
 type AuthState = {
@@ -44,9 +50,53 @@ function userFromCredential(credential: string | null | undefined): AuthUser {
   }
 }
 
+function isStoredAuthSession(value: unknown): value is StoredAuthSession {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  return typeof (value as Partial<StoredAuthSession>).token === 'string'
+}
+
+function loadStoredToken(): string | null {
+  try {
+    const rawSession = window.localStorage.getItem(AUTH_STORAGE_KEY)
+    if (!rawSession) {
+      return null
+    }
+
+    const parsedSession: unknown = JSON.parse(rawSession)
+    if (!isStoredAuthSession(parsedSession)) {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      return null
+    }
+
+    return parsedSession.token
+  } catch {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY)
+    return null
+  }
+}
+
+function persistToken(token: string) {
+  window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token }))
+}
+
+function clearStoredToken() {
+  window.localStorage.removeItem(AUTH_STORAGE_KEY)
+}
+
+const storedToken = loadStoredToken()
+
 export const useAuthStore = create<AuthState>((set) => ({
-  token: null,
-  user: null,
-  setToken: (token) => set({ token, user: userFromCredential(token) }),
-  clearToken: () => set({ token: null, user: null }),
+  token: storedToken,
+  user: storedToken ? userFromCredential(storedToken) : null,
+  setToken: (token) => {
+    persistToken(token)
+    set({ token, user: userFromCredential(token) })
+  },
+  clearToken: () => {
+    clearStoredToken()
+    set({ token: null, user: null })
+  },
 }))

@@ -1,5 +1,5 @@
 import React from 'react'
-import { beforeEach, describe, expect, test } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import ChatPage from '../pages/ChatPage'
@@ -13,8 +13,11 @@ function renderChatPage() {
   )
 }
 
+const CHAT_STORAGE_KEY = 'book-ninja.chat.messages'
+
 describe('chat page shell', () => {
   beforeEach(() => {
+    window.localStorage.clear()
     useAuthStore.setState({
       token: 'mock-token',
       user: { name: 'Ada Lovelace', email: 'ada@example.com', picture: null },
@@ -41,6 +44,53 @@ describe('chat page shell', () => {
     const profilePhoto = screen.getByTestId('user-profile-photo')
     expect(profilePhoto).toHaveAttribute('src', 'https://example.com/ada.png')
     expect(profilePhoto).toHaveAttribute('referrerpolicy', 'no-referrer')
+  })
+
+
+  test('loads existing chat messages from localStorage', () => {
+    window.localStorage.setItem(
+      CHAT_STORAGE_KEY,
+      JSON.stringify([
+        { id: 'assistant-1', role: 'assistant', content: 'Stored assistant reply', timestamp: '2026-05-23T00:00:00.000Z' },
+        { id: 'user-1', role: 'user', content: 'Stored user question', timestamp: '2026-05-23T00:01:00.000Z' },
+      ])
+    )
+
+    renderChatPage()
+
+    expect(screen.getByText(/stored assistant reply/i)).toBeInTheDocument()
+    expect(screen.getByText(/stored user question/i)).toBeInTheDocument()
+  })
+
+  test('persists new chat messages to localStorage', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-23T00:02:00.000Z'))
+
+    renderChatPage()
+
+    fireEvent.change(screen.getByLabelText(/message input/i), {
+      target: { value: 'Persist this recommendation request' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /send/i }))
+
+    const storedMessages = JSON.parse(window.localStorage.getItem(CHAT_STORAGE_KEY) ?? '[]')
+    expect(storedMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'user', content: 'Persist this recommendation request' }),
+      ])
+    )
+
+    vi.useRealTimers()
+  })
+
+  test('ignores invalid localStorage chat history and falls back to seeded message', () => {
+    window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify([{ role: 'user', content: 42 }]))
+
+    renderChatPage()
+
+    expect(
+      screen.getByText(/i can help you search books, recommend titles, and find ebook, audiobook, or purchase options/i)
+    ).toBeInTheDocument()
   })
 
   test('renders welcome banner and seeded assistant message', () => {
