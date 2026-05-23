@@ -13,6 +13,11 @@ function renderChatPage() {
 }
 
 describe('chat page shell', () => {
+  test('renders a user profile button in the chat header', () => {
+    renderChatPage()
+
+    expect(screen.getByRole('button', { name: /user profile for book ninja reader/i })).toBeInTheDocument()
+  })
   test('renders welcome banner and seeded assistant message', () => {
     renderChatPage()
 
