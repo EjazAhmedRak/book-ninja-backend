@@ -1,5 +1,7 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import './google-oauth.mock'
+import { mockGoogleCredential } from './google-oauth.mock'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import AppRouter from '../AppRouter'
@@ -8,14 +10,16 @@ import { useAuthStore } from '../store/useAuthStore'
 describe('login success transition', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    useAuthStore.setState({ token: null })
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'test-client-id.apps.googleusercontent.com')
+    useAuthStore.setState({ token: null, user: null })
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    vi.unstubAllEnvs()
   })
 
-  test('login action sets token and navigates to login-success', () => {
+  test('google login action sets token, user, and navigates to login-success', () => {
     render(
       <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }} initialEntries={['/login']}>
         <AppRouter />
@@ -25,11 +29,12 @@ describe('login success transition', () => {
     fireEvent.click(screen.getByRole('button', { name: /continue with google/i }))
 
     expect(screen.getByRole('heading', { name: /login successful/i })).toBeInTheDocument()
-    expect(useAuthStore.getState().token).toBe('demo-token')
+    expect(useAuthStore.getState().token).toBe(mockGoogleCredential)
+    expect(useAuthStore.getState().user).toMatchObject({ name: 'Ada Lovelace', email: 'ada@example.com' })
   })
 
   test('login-success auto-redirects to /chat', () => {
-    useAuthStore.setState({ token: 'demo-token' })
+    useAuthStore.setState({ token: mockGoogleCredential })
 
     render(
       <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }} initialEntries={['/login-success']}>

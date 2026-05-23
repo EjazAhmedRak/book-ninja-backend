@@ -1,8 +1,9 @@
 import React from 'react'
-import { describe, expect, test } from 'vitest'
+import { beforeEach, describe, expect, test } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import ChatPage from '../pages/ChatPage'
+import { useAuthStore } from '../store/useAuthStore'
 
 function renderChatPage() {
   return render(
@@ -13,11 +14,35 @@ function renderChatPage() {
 }
 
 describe('chat page shell', () => {
+  beforeEach(() => {
+    useAuthStore.setState({
+      token: 'mock-token',
+      user: { name: 'Ada Lovelace', email: 'ada@example.com', picture: null },
+    })
+  })
+
   test('renders a user profile button in the chat header', () => {
     renderChatPage()
 
-    expect(screen.getByRole('button', { name: /user profile for book ninja reader/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /user profile for ada lovelace/i })).toBeInTheDocument()
+    expect(screen.getByText('ada@example.com')).toBeInTheDocument()
   })
+
+
+
+  test('renders the Google profile photo when available', () => {
+    useAuthStore.setState({
+      token: 'mock-token',
+      user: { name: 'Ada Lovelace', email: 'ada@example.com', picture: 'https://example.com/ada.png' },
+    })
+
+    renderChatPage()
+
+    const profilePhoto = screen.getByTestId('user-profile-photo')
+    expect(profilePhoto).toHaveAttribute('src', 'https://example.com/ada.png')
+    expect(profilePhoto).toHaveAttribute('referrerpolicy', 'no-referrer')
+  })
+
   test('renders welcome banner and seeded assistant message', () => {
     renderChatPage()
 

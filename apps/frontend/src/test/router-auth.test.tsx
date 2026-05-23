@@ -1,4 +1,5 @@
 import React from 'react'
+import './google-oauth.mock'
 import { beforeEach, describe, expect, test } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'

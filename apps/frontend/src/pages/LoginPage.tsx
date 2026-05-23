@@ -1,14 +1,15 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import bookNinjaLogo from '../assets/book-ninja-logo.svg'
+import GoogleLoginButton from '../components/GoogleLoginButton'
 import { useAuthStore } from '../store/useAuthStore'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const setToken = useAuthStore((state) => state.setToken)
 
-  const handleLogin = () => {
-    setToken('demo-token')
+  const handleCredential = (credential: string) => {
+    setToken(credential)
     navigate('/login-success')
   }
 
@@ -60,23 +61,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleLogin}
-          style={{
-            background: 'linear-gradient(135deg, #ff8500, #19a7de)',
-            border: 0,
-            borderRadius: '999px',
-            boxShadow: '0 18px 35px rgba(25, 167, 222, 0.25)',
-            color: '#ffffff',
-            cursor: 'pointer',
-            fontSize: '1rem',
-            fontWeight: 900,
-            padding: '0.95rem 1.45rem',
-          }}
-        >
-          Continue with Google
-        </button>
+        <GoogleLoginButton onCredential={handleCredential} />
       </section>
     </main>
   )
