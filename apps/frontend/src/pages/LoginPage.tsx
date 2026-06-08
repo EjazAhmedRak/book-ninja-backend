@@ -1,5 +1,6 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { verifyAuthToken } from '../api/auth'
 import bookNinjaLogo from '../assets/book-ninja-logo.svg'
 import GoogleLoginButton from '../components/GoogleLoginButton'
 import { useAuthStore } from '../store/useAuthStore'
@@ -7,10 +8,17 @@ import { useAuthStore } from '../store/useAuthStore'
 export default function LoginPage() {
   const navigate = useNavigate()
   const setToken = useAuthStore((state) => state.setToken)
+  const [authError, setAuthError] = React.useState('')
 
-  const handleCredential = (credential: string) => {
-    setToken(credential)
-    navigate('/login-success')
+  const handleCredential = async (credential: string) => {
+    try {
+      setAuthError('')
+      await verifyAuthToken(credential)
+      setToken(credential)
+      navigate('/login-success')
+    } catch {
+      setAuthError('Could not verify your Google sign-in with Book Ninja. Please try again.')
+    }
   }
 
   return (
@@ -62,6 +70,11 @@ export default function LoginPage() {
         </div>
 
         <GoogleLoginButton onCredential={handleCredential} />
+        {authError ? (
+          <p role="alert" style={{ color: '#b91c1c', fontWeight: 800, margin: 0 }}>
+            {authError}
+          </p>
+        ) : null}
       </section>
     </main>
   )

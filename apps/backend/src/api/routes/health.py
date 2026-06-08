@@ -4,7 +4,7 @@ from db.mongo import ping_mongo
 from config import HARDCOVER_API_KEY
 import httpx
 
-router = APIRouter()
+router = APIRouter(tags=["Health"])
 
 
 @router.get("/health", response_model=HealthResponse)

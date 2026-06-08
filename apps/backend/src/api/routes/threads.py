@@ -3,7 +3,7 @@ from api.middleware.auth import validate_google_token, GoogleUser
 from models.thread import ThreadsResponse
 from db.mongo import get_latest_threads
 
-router = APIRouter()
+router = APIRouter(tags=["Chat"])
 
 
 @router.get("/latestThreads", response_model=ThreadsResponse)
