@@ -1,8 +1,18 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 const MAX_PROMPT_LENGTH = 3000
+const CHAT_STORAGE_KEY = 'book-ninja.chat.messages'
 
-function createMessage(role, content) {
+type MessageRole = 'assistant' | 'user'
+
+type ChatMessage = {
+  id: string
+  role: MessageRole
+  content: string
+  timestamp: string
+}
+
+function createMessage(role: MessageRole, content: string): ChatMessage {
   return {
     id: globalThis.crypto?.randomUUID?.() ?? `${role}-${Date.now()}-${Math.random()}`,
     role,
@@ -11,19 +21,64 @@ function createMessage(role, content) {
   }
 }
 
-export default function ChatWindow() {
-  const initialMessages = useMemo(
-    () => [
-      createMessage(
-        'assistant',
-        'I can help you search books, recommend titles, and find ebook, audiobook, or purchase options.'
-      ),
-    ],
-    []
-  )
+function createSeedMessages(): ChatMessage[] {
+  return [
+    createMessage(
+      'assistant',
+      'I can help you search books, recommend titles, and find ebook, audiobook, or purchase options.'
+    ),
+  ]
+}
 
-  const [messages, setMessages] = useState(initialMessages)
+function isChatMessage(value: unknown): value is ChatMessage {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const message = value as Partial<ChatMessage>
+  return (
+    typeof message.id === 'string' &&
+    (message.role === 'assistant' || message.role === 'user') &&
+    typeof message.content === 'string' &&
+    typeof message.timestamp === 'string'
+  )
+}
+
+function loadStoredMessages(): ChatMessage[] | null {
+  try {
+    const rawMessages = window.localStorage.getItem(CHAT_STORAGE_KEY)
+    if (!rawMessages) {
+      return null
+    }
+
+    const parsedMessages: unknown = JSON.parse(rawMessages)
+    if (!Array.isArray(parsedMessages) || !parsedMessages.every(isChatMessage)) {
+      return null
+    }
+
+    return parsedMessages
+  } catch {
+    return null
+  }
+}
+
+function persistMessages(messages: ChatMessage[]) {
+  try {
+    window.localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages))
+  } catch {
+    // Chat history persistence is best-effort; the local UI should continue to work.
+  }
+}
+
+export default function ChatWindow() {
+  const initialMessages = useMemo<ChatMessage[]>(() => loadStoredMessages() ?? createSeedMessages(), [])
+
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
   const [input, setInput] = useState('')
+
+  useEffect(() => {
+    persistMessages(messages)
+  }, [messages])
 
   const handleSend = () => {
     const trimmed = input.trim()

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
-from api.middleware.auth import validate_google_token, GoogleUser
-from models.thread import ThreadsResponse
-from db.mongo import get_latest_threads
 
-router = APIRouter()
+from api.middleware.auth import GoogleUser, validate_google_token
+from db.mongo import get_latest_threads
+from models.thread import ThreadsResponse
+
+router = APIRouter(tags=["Chat"])
 
 
 @router.get("/latestThreads", response_model=ThreadsResponse)

@@ -1,9 +1,10 @@
 from pydantic import BaseModel
-from models.query import ParsedQuery
-from models.book import BookResult
-from models.purchase import PurchaseLink
-from models.ebook import EbookLink
+
 from models.audiobook import AudiobookLink
+from models.book import BookResult
+from models.ebook import EbookLink
+from models.purchase import PurchaseLink
+from models.query import ParsedQuery
 
 
 class AgentState(BaseModel):

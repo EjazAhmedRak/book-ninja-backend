@@ -1,8 +1,10 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from motor.motor_asyncio import AsyncIOMotorClient
-from models.user import UserRecord
-from models.thread import ThreadRecord
+
 from config import MONGO_URI
+from models.thread import ThreadRecord
+from models.user import UserRecord
 
 client      = AsyncIOMotorClient(MONGO_URI)
 db          = client["book_ninja"]
@@ -33,7 +35,7 @@ async def save_thread(user_id: str, thread_id: str, prompt: str) -> None:
     await threads_col.update_one(
         {"thread_id": thread_id},
         {
-            "$set": {"user_id": user_id, "timestamp": datetime.now(timezone.utc)},
+            "$set": {"user_id": user_id, "timestamp": datetime.now(UTC)},
             "$setOnInsert": {"thread_id": thread_id, "preview": preview},
         },
         upsert=True,

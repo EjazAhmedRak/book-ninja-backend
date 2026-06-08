@@ -1,0 +1,17 @@
+<svg width="900" height="900" viewBox="0 0 900 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Book Ninja logo</title>
+  <desc id="desc">Orange and blue Book Ninja logo with a masked ninja reading an open book.</desc>
+  <rect width="900" height="900" fill="#ffffff"/>
+  <circle cx="450" cy="360" r="180" fill="#ff8500"/>
+  <path d="M278 442C318 465 371 476 450 476C529 476 582 465 622 442C606 517 537 572 450 572C363 572 294 517 278 442Z" fill="#19a7de"/>
+  <path d="M450 284C389 284 340 333 340 394C340 455 389 504 450 504C511 504 560 455 560 394C560 333 511 284 450 284Z" fill="#ffffff"/>
+  <path d="M474 288C482 240 510 218 554 205C548 231 559 253 581 266C548 264 522 275 502 299C527 287 555 287 584 300C555 309 535 324 522 346C492 320 471 318 474 288Z" fill="#ffffff"/>
+  <path d="M365 380C420 396 481 396 535 380C541 382 547 388 550 396C545 433 519 448 482 435C469 430 461 429 450 429C439 429 431 430 418 435C381 448 355 433 350 396C353 388 359 382 365 380Z" fill="#ff8500"/>
+  <path d="M385 407C402 398 417 400 431 414C411 411 404 417 395 427C394 417 391 411 385 407Z" fill="#ffffff"/>
+  <path d="M515 407C498 398 483 400 469 414C489 411 496 417 505 427C506 417 509 411 515 407Z" fill="#ffffff"/>
+  <path d="M276 436C334 423 397 422 450 459C503 422 566 423 624 436C634 438 636 452 626 456C566 447 509 449 467 477C458 483 442 483 433 477C391 449 334 447 274 456C264 452 266 438 276 436Z" fill="#ffffff" stroke="#ff8500" stroke-width="6"/>
+  <path d="M450 459V507" stroke="#ff8500" stroke-width="6" stroke-linecap="round"/>
+  <text x="164" y="716" fill="#ff8500" font-family="Arial, sans-serif" font-size="86" font-weight="800" letter-spacing="8">BOOK</text>
+  <text x="454" y="716" fill="#19a7de" font-family="Arial, sans-serif" font-size="86" font-weight="800" letter-spacing="8">NINJA</text>
+  <text x="250" y="792" fill="#111827" font-family="Arial, sans-serif" font-size="34" font-weight="800" letter-spacing="7">SEARCH  |  READ  |  DOWNLOAD</text>
+</svg>

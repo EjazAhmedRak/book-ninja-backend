@@ -1,5 +1,5 @@
-from models.agent import AgentState
 from agent.tools.parse_query import parse_query
+from models.agent import AgentState
 
 
 def _forced_intent_from_prompt(prompt: str) -> str | None:
