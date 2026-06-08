@@ -1,10 +1,12 @@
 import logging
-from gql import gql, Client
+
+from gql import Client, gql
 from gql.transport.aiohttp import AIOHTTPTransport
 from langchain_core.tools import tool
-from models.query import ParsedQuery
-from models.book import BookResult
+
 from config import HARDCOVER_API_KEY
+from models.book import BookResult
+from models.query import ParsedQuery
 
 logger = logging.getLogger(__name__)
 

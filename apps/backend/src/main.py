@@ -1,14 +1,16 @@
-import os
 import logging
+import os
 from contextlib import asynccontextmanager
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from api.routes import auth, chat, threads, health
-from config import FRONTEND_ORIGINS, LANGCHAIN_TRACING_V2, LANGCHAIN_PROJECT
-from db.checkpointer import get_checkpointer
+
 from agent.graph import build_graph
+from api.routes import auth, chat, health, threads
+from config import FRONTEND_ORIGINS, LANGCHAIN_PROJECT, LANGCHAIN_TRACING_V2
+from db.checkpointer import get_checkpointer
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
 os.environ["LANGCHAIN_TRACING_V2"] = LANGCHAIN_TRACING_V2
 os.environ["LANGCHAIN_PROJECT"] = LANGCHAIN_PROJECT

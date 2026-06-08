@@ -1,10 +1,11 @@
 import asyncio
-from google.oauth2 import id_token
+
+from fastapi import Header, HTTPException
 from google.auth.transport import requests as google_requests
-from fastapi import HTTPException, Header
+from google.oauth2 import id_token
 from pydantic import BaseModel
-from typing import Optional
-from config import GOOGLE_CLIENT_ID, APP_ENV
+
+from config import APP_ENV, GOOGLE_CLIENT_ID
 
 
 class GoogleUser(BaseModel):
@@ -14,8 +15,8 @@ class GoogleUser(BaseModel):
 
 
 async def validate_google_token(
-    authorization: Optional[str] = Header(default=None),
-    x_debug_email: Optional[str] = Header(default=None),
+    authorization: str | None = Header(default=None),
+    x_debug_email: str | None = Header(default=None),
 ) -> GoogleUser:
     """
     Validates the Bearer token from the Authorization header.

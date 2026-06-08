@@ -1,9 +1,11 @@
 import logging
-import httpx
 from urllib.parse import quote_plus
+
+import httpx
 from bs4 import BeautifulSoup
 from fastapi import HTTPException
 from langchain_core.tools import tool
+
 from models.ebook import EbookLink, EbookQuery
 
 logger = logging.getLogger(__name__)

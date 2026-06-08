@@ -1,5 +1,6 @@
-from fastapi import HTTPException
 import re
+
+from fastapi import HTTPException
 
 MAX_PROMPT_LENGTH = 3000
 

@@ -1,8 +1,10 @@
 import logging
+
 import httpx
 from bs4 import BeautifulSoup
 from fastapi import HTTPException
 from langchain_core.tools import tool
+
 from models.audiobook import AudiobookLink, AudiobookQuery
 
 logger = logging.getLogger(__name__)

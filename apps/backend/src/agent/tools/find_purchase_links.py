@@ -1,8 +1,10 @@
 import asyncio
-from tavily import TavilyClient
+
 from langchain_core.tools import tool
-from models.purchase import PurchaseLink, PurchaseQuery
+from tavily import TavilyClient
+
 from config import TAVILY_API_KEY
+from models.purchase import PurchaseLink, PurchaseQuery
 
 tavily = TavilyClient(api_key=TAVILY_API_KEY)
 

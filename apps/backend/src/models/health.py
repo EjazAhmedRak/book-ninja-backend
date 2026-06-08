@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from typing import Literal
+
+from pydantic import BaseModel
 
 IntegrationStatus = Literal["ok", "degraded", "unavailable"]
 

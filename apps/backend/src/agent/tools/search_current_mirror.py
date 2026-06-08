@@ -1,15 +1,16 @@
-import re
 import asyncio
-from fastapi import logger
+import re
+
 import httpx
 from ddgs import DDGS
+from fastapi import logger
 from langchain_core.tools import tool
-from models.mirror import MirrorQuery, MirrorResult
+
 from config import AUDIOBOOKBAY_FALLBACK_URL
-from datetime import date
+from models.mirror import MirrorQuery, MirrorResult
 
 _ANNAS_ARCHIVE_PAGE = "https://shadowlibraries.github.io/DirectDownloads/AnnasArchive/"
-_AUDIOBOOKBAY_SEARCH = f"Audiobookbay"
+_AUDIOBOOKBAY_SEARCH = "Audiobookbay"
 
 _HREF_RE = re.compile(r'href=["\']([^"\']+)["\']', re.IGNORECASE)
 

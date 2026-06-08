@@ -1,8 +1,9 @@
-from fastapi import APIRouter
-from models.health import HealthResponse
-from db.mongo import ping_mongo
-from config import HARDCOVER_API_KEY
 import httpx
+from fastapi import APIRouter
+
+from config import HARDCOVER_API_KEY
+from db.mongo import ping_mongo
+from models.health import HealthResponse
 
 router = APIRouter(tags=["Health"])
 
