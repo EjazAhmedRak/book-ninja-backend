@@ -13,7 +13,7 @@ from db.mongo import save_thread, save_user
 from models.agent import AgentState
 from models.user import UserRecord
 
-router = APIRouter()
+router = APIRouter(tags=["Chat"])
 logger = logging.getLogger(__name__)
 
 

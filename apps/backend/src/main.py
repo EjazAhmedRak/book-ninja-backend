@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 from fastapi import FastAPI
-from api.routes import chat, threads, health
-from config import LANGCHAIN_TRACING_V2, LANGCHAIN_PROJECT
+from fastapi.middleware.cors import CORSMiddleware
+from api.routes import auth, chat, threads, health
+from config import FRONTEND_ORIGINS, LANGCHAIN_TRACING_V2, LANGCHAIN_PROJECT
 from db.checkpointer import get_checkpointer
 from agent.graph import build_graph
 
@@ -28,6 +29,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=FRONTEND_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
 app.include_router(chat.router)
 app.include_router(threads.router)
 app.include_router(health.router)
